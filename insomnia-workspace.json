@@ -1,0 +1,111 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2024-06-15T10:50:00Z",
+  "__export_source": "insomnia.desktop.app:v2024.1.0",
+  "resources": [
+    {
+      "_id": "wrk_1",
+      "name": "Shopping List API",
+      "type": "Workspace",
+      "parentId": null,
+      "_type": "workspace"
+    },
+    {
+      "_id": "req_get_lists",
+      "parentId": "wrk_1",
+      "name": "Get Shopping Lists",
+      "method": "GET",
+      "url": "http://localhost:3000/shopping-list",
+      "_type": "request"
+    },
+    {
+      "_id": "req_archive_list",
+      "parentId": "wrk_1",
+      "name": "Archive Shopping List",
+      "method": "PATCH",
+      "url": "http://localhost:3000/shopping-list/:id/archive",
+      "_type": "request"
+    },
+    {
+      "_id": "req_update_name",
+      "parentId": "wrk_1",
+      "name": "Update Shopping List Name",
+      "method": "PATCH",
+      "url": "http://localhost:3000/shopping-list/:id/name",
+      "_type": "request"
+    },
+    {
+      "_id": "req_delete_member",
+      "parentId": "wrk_1",
+      "name": "Remove Member",
+      "method": "DELETE",
+      "url": "http://localhost:3000/shopping-list/:id/members/:memberID",
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_list",
+      "parentId": "wrk_1",
+      "name": "Create Shopping List",
+      "method": "POST",
+      "url": "http://localhost:3000/shopping-list",
+      "_type": "request"
+    },
+    {
+      "_id": "req_add_item",
+      "parentId": "wrk_1",
+      "name": "Add Item to Shopping List",
+      "method": "POST",
+      "url": "http://localhost:3000/shopping-list/:id/items",
+      "_type": "request"
+    },
+    {
+      "_id": "req_add_member",
+      "parentId": "wrk_1",
+      "name": "Add Member",
+      "method": "POST",
+      "url": "http://localhost:3000/shopping-list/:id/members",
+      "_type": "request"
+    },
+    {
+      "_id": "req_update_item",
+      "parentId": "wrk_1",
+      "name": "Update Item in Shopping List",
+      "method": "PATCH",
+      "url": "http://localhost:3000/shopping-list/:id/items/:itemID",
+      "_type": "request"
+    },
+    {
+      "_id": "req_delete_list",
+      "parentId": "wrk_1",
+      "name": "Delete Shopping List",
+      "method": "DELETE",
+      "url": "http://localhost:3000/shopping-list/:id",
+      "_type": "request"
+    },
+    {
+      "_id": "req_delete_item",
+      "parentId": "wrk_1",
+      "name": "Delete Item from Shopping List",
+      "method": "DELETE",
+      "url": "http://localhost:3000/shopping-list/:id/items/:itemID",
+      "_type": "request"
+    },
+    {
+      "_id": "req_register",
+      "parentId": "wrk_1",
+      "name": "Register",
+      "method": "POST",
+      "url": "http://localhost:3000/register",
+      "_type": "request"
+    },
+    {
+      "_id": "req_login",
+      "parentId": "wrk_1",
+      "name": "Login",
+      "method": "POST",
+      "url": "http://localhost:3000/login",
+      "_type": "request"
+    }
+  ]
+}
