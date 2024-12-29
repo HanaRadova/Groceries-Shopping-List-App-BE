@@ -4,6 +4,45 @@ import { v4 as uuidv4 } from "uuid";
 
 export const shoppingListRouter = express.Router();
 
+// Utility function to find a shopping list
+const findShoppingList = (listID) => shoppingLists.find((list) => list._ID === listID);
+
+// Middleware to check if a shopping list exists
+const checkShoppingList = (req, res, next) => {
+  const shoppingList = findShoppingList(req.params.id);
+  if (!shoppingList) {
+    return res.status(404).json({ message: "Shopping list not found" });
+  }
+  req.shoppingList = shoppingList; // Attach the shopping list to the request object
+  next();
+};
+
+// Middleware to check user permissions
+const checkAccess = (req, res, next) => {
+  const { shoppingList } = req;
+  const userID = req.user.id;
+
+  if (
+    shoppingList.listCreatorID !== userID &&
+    !shoppingList.memberIDs.includes(userID)
+  ) {
+    return res.status(403).json({ message: "You do not have access to this shopping list" });
+  }
+  next();
+};
+
+// Middleware to check ownership
+const checkOwnership = (req, res, next) => {
+  const { shoppingList } = req;
+  const userID = req.user.id;
+
+  if (shoppingList.listCreatorID !== userID) {
+    return res.status(403).json({ message: "Only the owner can perform this action" });
+  }
+  next();
+};
+
+// GET: Fetch shopping lists
 shoppingListRouter.get("/", (req, res) => {
   const userID = req.user.id;
   const showArchived = req.query.archived === "true";
@@ -17,48 +56,29 @@ shoppingListRouter.get("/", (req, res) => {
   res.json(filteredLists);
 });
 
-shoppingListRouter.patch("/:id/archive", (req, res) => {
-  const userID = req.user.id;
-  const shoppingList = shoppingLists.find((list) => list._ID === req.params.id);
-
-  if (!shoppingList)
-    return res.status(404).json({ message: "Shopping list not found" });
-  if (shoppingList.listCreatorID !== userID) {
-    return res
-      .status(403)
-      .json({ message: "Only the owner can archive this shopping list" });
-  }
-
-  shoppingList.archived = true;
-  res.json({ message: "Shopping list archived", shoppingList });
+// PATCH: Archive a shopping list
+shoppingListRouter.patch("/:id/archive", checkShoppingList, checkOwnership, (req, res) => {
+  req.shoppingList.archived = true;
+  res.json({ message: "Shopping list archived", shoppingList: req.shoppingList });
 });
 
-shoppingListRouter.patch("/:id/name", (req, res) => {
-  const userID = req.user.id;
+// PATCH: Update shopping list name
+shoppingListRouter.patch("/:id", checkShoppingList, checkOwnership, (req, res) => {
   const { name } = req.body;
 
-  const shoppingList = shoppingLists.find((list) => list._ID === req.params.id);
-
-  if (!shoppingList)
-    return res.status(404).json({ message: "Shopping list not found" });
-  if (shoppingList.listCreatorID !== userID) {
-    return res
-      .status(403)
-      .json({ message: "Only the owner can update this shopping list" });
+  if (!name || typeof name !== "string") {
+    return res.status(400).json({ message: "Invalid update data" });
   }
 
-  shoppingList.name = name;
-  res.json({ message: "Shopping list name updated", shoppingList });
+  req.shoppingList.name = name;
+  res.status(200).json({ message: "Shopping list updated", shoppingList: req.shoppingList });
 });
 
-shoppingListRouter.delete("/:id/members/:memberID", (req, res) => {
+// DELETE: Remove a member from a shopping list
+shoppingListRouter.delete("/:id/members/:memberID", checkShoppingList, (req, res) => {
   const userID = req.user.id;
-  const memberID = req.params.memberID;
-
-  const shoppingList = shoppingLists.find((list) => list._ID === req.params.id);
-
-  if (!shoppingList)
-    return res.status(404).json({ message: "Shopping list not found" });
+  const { memberID } = req.params;
+  const { shoppingList } = req;
 
   if (shoppingList.listCreatorID !== userID && memberID !== userID) {
     return res.status(403).json({
@@ -66,14 +86,23 @@ shoppingListRouter.delete("/:id/members/:memberID", (req, res) => {
     });
   }
 
-  shoppingList.memberIDs = shoppingList.memberIDs.filter(
-    (id) => id !== memberID
-  );
+  shoppingList.memberIDs = shoppingList.memberIDs.filter((id) => id !== memberID);
   res.json({ message: `Member ${memberID} removed`, shoppingList });
 });
 
+// POST: Create a new shopping list
 shoppingListRouter.post("/", (req, res) => {
   const { name, memberIDs, items } = req.body;
+
+  // Ensure only admin can create a list
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ message: "Unauthorized to create shopping lists" });
+  }
+
+  if (!name) {
+    return res.status(400).json({ message: "Name is required" });
+  }
+
   const userID = req.user.id;
   const newShoppingList = {
     _ID: uuidv4(),
@@ -81,138 +110,16 @@ shoppingListRouter.post("/", (req, res) => {
     name,
     memberIDs: memberIDs || [],
     items: items || [],
+    archived: false,
   };
+
   shoppingLists.push(newShoppingList);
   res.status(201).json(newShoppingList);
 });
 
-shoppingListRouter.post("/:id/items", (req, res) => {
-  const userID = req.user.id;
-  const shoppingList = shoppingLists.find((list) => list._ID === req.params.id);
-
-  if (!shoppingList)
-    return res.status(404).json({ message: "Shopping list not found" });
-  if (
-    shoppingList.listCreatorID !== userID &&
-    !shoppingList.memberIDs.includes(userID)
-  ) {
-    return res.status(403).json({
-      message: "You do not have permission to add items to this shopping list",
-    });
-  }
-
-  const { content } = req.body;
-  if (!content)
-    return res.status(400).json({ message: "Item content is required" });
-
-  const newItem = {
-    _ID: uuidv4(),
-    content,
-    itemCreatorID: userID,
-    done: false,
-  };
-
-  shoppingList.items.push(newItem);
-  res
-    .status(201)
-    .json({ message: "Item added to shopping list", item: newItem });
-});
-
-shoppingListRouter.post("/:id/members", (req, res) => {
-  const userID = req.user.id;
-  const shoppingList = shoppingLists.find((list) => list._ID === req.params.id);
-
-  if (!shoppingList)
-    return res.status(404).json({ message: "Shopping list not found" });
-  if (shoppingList.listCreatorID !== userID) {
-    return res.status(403).json({
-      message: "Only the owner can add members to this shopping list",
-    });
-  }
-
-  const { memberID } = req.body;
-  if (!memberID)
-    return res.status(400).json({ message: "Member ID is required" });
-
-  if (shoppingList.memberIDs.includes(memberID)) {
-    return res.status(400).json({ message: "This user is already a member" });
-  }
-
-  shoppingList.memberIDs.push(memberID);
-  res
-    .status(201)
-    .json({ message: "Member added to shopping list", shoppingList });
-});
-
-shoppingListRouter.patch("/:id/items/:itemID", (req, res) => {
-  const userID = req.user.id;
-  const shoppingList = shoppingLists.find((list) => list._ID === req.params.id);
-
-  if (!shoppingList)
-    return res.status(404).json({ message: "Shopping list not found" });
-  if (
-    shoppingList.listCreatorID !== userID &&
-    !shoppingList.memberIDs.includes(userID)
-  ) {
-    return res.status(403).json({
-      message:
-        "You do not have permission to update items in this shopping list",
-    });
-  }
-
-  const item = shoppingList.items.find(
-    (item) => item._ID === req.params.itemID
-  );
-  if (!item) return res.status(404).json({ message: "Item not found" });
-
-  const { content, done } = req.body;
-
-  if (content !== undefined) item.content = content;
-  if (done !== undefined) item.done = done;
-
-  res.json({ message: "Item updated", item });
-});
-
-shoppingListRouter.delete("/:id", (req, res) => {
-  const userID = req.user.id;
+// DELETE: Delete a shopping list
+shoppingListRouter.delete("/:id", checkShoppingList, checkOwnership, (req, res) => {
   const index = shoppingLists.findIndex((list) => list._ID === req.params.id);
-
-  if (index === -1)
-    return res.status(404).json({ message: "Shopping list not found" });
-
-  const shoppingList = shoppingLists[index];
-  if (shoppingList.listCreatorID !== userID) {
-    return res
-      .status(403)
-      .json({ message: "Only the owner can delete this shopping list" });
-  }
-
   shoppingLists.splice(index, 1);
-  res.status(204).json({ message: "Shopping list deleted" });
-});
-
-shoppingListRouter.delete("/:id/items/:itemID", (req, res) => {
-  const userID = req.user.id;
-  const shoppingList = shoppingLists.find((list) => list._ID === req.params.id);
-
-  if (!shoppingList)
-    return res.status(404).json({ message: "Shopping list not found" });
-  if (
-    shoppingList.listCreatorID !== userID &&
-    !shoppingList.memberIDs.includes(userID)
-  ) {
-    return res.status(403).json({
-      message:
-        "You do not have permission to delete items from this shopping list",
-    });
-  }
-
-  const itemIndex = shoppingList.items.findIndex(
-    (item) => item._ID === req.params.itemID
-  );
-  if (itemIndex === -1)
-    return res.status(404).json({ message: "Item not found" });
-
-  shoppingList.items.splice(itemIndex, 1);
-  res.status(204).json({ message: "Item deleted" });
+  res.status(204).send();
 });
